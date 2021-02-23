@@ -16,10 +16,10 @@ import (
 
 var files = []string{
 	"a_example.in",
-	// "b_little_bit_of_everything.in",
-	// "c_many_ingredients.in",
-	// "d_many_pizzas.in",
-	// "e_many_teams.in",
+	"b_little_bit_of_everything.in",
+	"c_many_ingredients.in",
+	"d_many_pizzas.in",
+	"e_many_teams.in",
 }
 
 func run(fn string) stats {
@@ -38,20 +38,59 @@ func run(fn string) stats {
 	tmp := lineToIntSlice(s.Text())
 
 	pizzaCount := tmp[0]
-	// twoTeamCount := tmp[1]
-	// threeTeamCount := tmp[2]
-	// fourTeamCount := tmp[3]
+	teamsCount := tmp[1:]
+	teams := []*team{}
 
+	// populate teams
+	for teamTypeID, teamTypeCount := range teamsCount {
+		for j := 0; j < teamTypeCount; j++ {
+			teams = append(teams, &team{
+				teamTypeID:  teamTypeID,
+				peopleCount: teamTypeID + 2,
+			})
+		}
+	}
+
+	sort.Slice(teams, func(i, j int) bool { return teams[i].peopleCount < teams[j].peopleCount })
+
+	// populate pizzas
 	pizzas := make([]pizza, 0, pizzaCount)
 
+	pizzaID := -1
 	for s.Scan() {
+		pizzaID++
+
+		ings := strings.Split(s.Text(), " ")[1:]
+		sort.Strings(ings)
+
 		pizzas = append(pizzas, pizza{
-			ingredients: sort.StringSlice(strings.Split(s.Text(), " ")[1:]),
+			id:          pizzaID,
+			ingredients: ings,
 		})
 	}
 
-	for _, p := range pizzas {
-		fmt.Println(p)
+	pizzaNeedle := 0
+	for _, team := range teams {
+		leftovers := len(pizzas) - pizzaNeedle
+
+		if team.peopleCount > leftovers {
+			// no enough pizzas left for this team
+			continue
+		}
+
+		teamPizzas := pizzas[pizzaNeedle : pizzaNeedle+team.peopleCount]
+
+		team.pizzas = teamPizzas // deep copy
+
+		ingredients := []string{}
+
+		for _, p := range teamPizzas {
+			ingredients = append(ingredients, p.ingredients...)
+		}
+
+		team.ings = NewSet().Add(ingredients...)
+
+		pizzaNeedle += team.peopleCount
 	}
 
 	// WRITE OUTPUT SU FILE
@@ -59,21 +98,47 @@ func run(fn string) stats {
 	dieIf(err)
 	defer out.Close()
 
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
+	fmt.Fprintln(out, pizzaNeedle)
+
+	totalScore := 0
+
+	for _, team := range teams {
+		pizzaIDs := []string{}
+
+		for _, pizza := range team.pizzas {
+			pizzaIDs = append(pizzaIDs, strconv.Itoa(pizza.id))
+		}
+
+		if len(team.pizzas) == 0 {
+			continue
+		}
+
+		totalScore += team.Score()
+
+		fmt.Fprintf(out, "%v %v\n", team.peopleCount, strings.Join(pizzaIDs, " "))
+	}
 
 	// RETURN OUT SUMMARY
-	return stats{}
+	return stats{
+		fn:    fn,
+		score: totalScore,
+	}
 }
 
+type team struct {
+	teamTypeID  int
+	peopleCount int
+	pizzas      pizzas
+	ings        Set
+}
+
+func (t *team) Score() int {
+	return len(t.ings) * len(t.ings)
+}
+
+type pizzas []pizza
 type pizza struct {
+	id          int
 	ingredients []string
 }
 
