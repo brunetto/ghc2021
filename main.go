@@ -62,6 +62,7 @@ func run(fn string) stats {
 		pizzas = append(pizzas, NewPizza(pizzaID, strings.Split(s.Text(), " ")[1:]))
 	}
 
+	// delivery
 	pizzaNeedle := 0
 	for _, team := range teams {
 		leftovers := len(pizzas) - pizzaNeedle
@@ -75,6 +76,11 @@ func run(fn string) stats {
 
 		pizzaNeedle += team.peopleCount
 	}
+
+	// sort by boredom
+	// sort.Slice(teams, func(i, j int) bool { return teams[i].boredom > teams[j].boredom })
+
+	// TODO: try to use leftovers pizzas
 
 	// TODO: try to sort by "sfiga" and swap pizzas IF the score improves
 
@@ -112,14 +118,13 @@ type team struct {
 	pizzas            pizzas
 	uniqueIngredients Set
 	ingredients       []string
+	boredom           int
 }
 
 func NewTeam(teamTypeID int) *team {
 	return &team{
-		teamTypeID:        teamTypeID,
-		peopleCount:       teamTypeID + 2,
-		ingredients:       make([]string, 0, teamTypeID+2),
-		uniqueIngredients: NewSet(),
+		teamTypeID:  teamTypeID,
+		peopleCount: teamTypeID + 2,
 	}
 }
 
@@ -133,11 +138,16 @@ func (t *team) PizzaIDs() []string {
 	return ids
 }
 
-func (t *team) Delivery(pizzas pizzas) {
+func (t *team) Delivery(p pizzas) {
 	t.delivered = true
-	copy(t.pizzas, pizzas) // deep copy
-	t.ingredients = append(t.ingredients, pizzas.ingredients()...)
-	t.uniqueIngredients.Add(t.ingredients...)
+	t.pizzas = make(pizzas, t.peopleCount)
+	copy(t.pizzas, p) // deep copy
+
+	t.ingredients = make([]string, 0, len(p.ingredients()))
+	t.ingredients = append(t.ingredients, p.ingredients()...)
+
+	t.uniqueIngredients = NewSet().Add(t.ingredients...)
+	t.boredom = len(t.ingredients) - len(t.uniqueIngredients)
 }
 
 func (t *team) Score() int {
@@ -196,7 +206,7 @@ func main() {
 		}
 
 		fmt.Println("total")
-		fmt.Printf("score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration %v: \n",
+		fmt.Printf("score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration: %v\n",
 			sumP, sumT, sumT-sumP, 100*float64(sumT-sumP)/float64(sumT), time.Duration(totalDuration)*time.Nanosecond)
 	}()
 
