@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,12 +15,11 @@ import (
 )
 
 var files = []string{
-	"a_example.txt",
-	"b_read_on.txt",
-	"c_incunabula.txt",
-	"d_tough_choices.txt",
-	"e_so_many_books.txt",
-	"f_libraries_of_the_world.txt",
+	"a_example.in",
+	// "b_little_bit_of_everything.in",
+	// "c_many_ingredients.in",
+	// "d_many_pizzas.in",
+	// "e_many_teams.in",
 }
 
 func run(fn string) stats {
@@ -35,23 +35,24 @@ func run(fn string) stats {
 	if !s.Scan() {
 		dieIf(errors.New("failed on first line"))
 	}
-	_ /*tmp :*/ = lineToIntSlice(s.Text())
+	tmp := lineToIntSlice(s.Text())
 
-	// CALCULATE MAX SCORE
-	//
-	//
-	//
-	//
-	//
+	pizzaCount := tmp[0]
+	// twoTeamCount := tmp[1]
+	// threeTeamCount := tmp[2]
+	// fourTeamCount := tmp[3]
 
-	// DO THINGS
-	//
-	//
-	//
-	//
-	//
-	//
-	//
+	pizzas := make([]pizza, 0, pizzaCount)
+
+	for s.Scan() {
+		pizzas = append(pizzas, pizza{
+			ingredients: sort.StringSlice(strings.Split(s.Text(), " ")[1:]),
+		})
+	}
+
+	for _, p := range pizzas {
+		fmt.Println(p)
+	}
 
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
@@ -72,8 +73,13 @@ func run(fn string) stats {
 	return stats{}
 }
 
+type pizza struct {
+	ingredients []string
+}
+
 func main() {
 	t0 := time.Now()
+	defer func() { log.Println("done in ", time.Since(t0)) }()
 
 	wkrs := sync.WaitGroup{}
 	rdc := sync.WaitGroup{}
@@ -113,7 +119,7 @@ func main() {
 	rdc.Wait()
 
 	fmt.Println()
-	log.Println("done in ", time.Since(t0))
+
 }
 
 type stats struct {
