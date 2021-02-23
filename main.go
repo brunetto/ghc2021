@@ -88,7 +88,8 @@ func run(fn string) stats {
 			ingredients = append(ingredients, p.ingredients...)
 		}
 
-		team.ings = NewSet().Add(ingredients...)
+		team.uniqueIngredients = NewSet().Add(ingredients...)
+		team.ingredients = append(team.ingredients, ingredients...)
 
 		pizzaNeedle += team.peopleCount
 	}
@@ -126,14 +127,15 @@ func run(fn string) stats {
 }
 
 type team struct {
-	teamTypeID  int
-	peopleCount int
-	pizzas      pizzas
-	ings        Set
+	teamTypeID        int
+	peopleCount       int
+	pizzas            pizzas
+	uniqueIngredients Set
+	ingredients       []string
 }
 
 func (t *team) Score() int {
-	return len(t.ings) * len(t.ings)
+	return len(t.uniqueIngredients) * len(t.uniqueIngredients)
 }
 
 type pizzas []pizza
