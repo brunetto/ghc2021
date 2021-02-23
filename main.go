@@ -23,6 +23,8 @@ var files = []string{
 }
 
 func run(fn string) stats {
+	t0 := time.Now()
+
 	// READ DATA
 	in, err := os.Open(fn)
 	dieIf(err)
@@ -44,29 +46,20 @@ func run(fn string) stats {
 	// populate teams
 	for teamTypeID, teamTypeCount := range teamsCount {
 		for j := 0; j < teamTypeCount; j++ {
-			teams = append(teams, &team{
-				teamTypeID:  teamTypeID,
-				peopleCount: teamTypeID + 2,
-			})
+			teams = append(teams, NewTeam(teamTypeID))
 		}
 	}
 
 	sort.Slice(teams, func(i, j int) bool { return teams[i].peopleCount < teams[j].peopleCount })
 
 	// populate pizzas
-	pizzas := make([]pizza, 0, pizzaCount)
+	pizzas := make(pizzas, 0, pizzaCount)
 
 	pizzaID := -1
 	for s.Scan() {
 		pizzaID++
 
-		ings := strings.Split(s.Text(), " ")[1:]
-		sort.Strings(ings)
-
-		pizzas = append(pizzas, pizza{
-			id:          pizzaID,
-			ingredients: ings,
-		})
+		pizzas = append(pizzas, NewPizza(pizzaID, strings.Split(s.Text(), " ")[1:]))
 	}
 
 	pizzaNeedle := 0
@@ -78,18 +71,7 @@ func run(fn string) stats {
 			continue
 		}
 
-		teamPizzas := pizzas[pizzaNeedle : pizzaNeedle+team.peopleCount]
-
-		team.pizzas = teamPizzas // deep copy
-
-		ingredients := []string{}
-
-		for _, p := range teamPizzas {
-			ingredients = append(ingredients, p.ingredients...)
-		}
-
-		team.uniqueIngredients = NewSet().Add(ingredients...)
-		team.ingredients = append(team.ingredients, ingredients...)
+		team.Delivery(pizzas[pizzaNeedle : pizzaNeedle+team.peopleCount])
 
 		pizzaNeedle += team.peopleCount
 	}
@@ -106,29 +88,25 @@ func run(fn string) stats {
 	totalScore := 0
 
 	for _, team := range teams {
-		pizzaIDs := []string{}
-
-		for _, pizza := range team.pizzas {
-			pizzaIDs = append(pizzaIDs, strconv.Itoa(pizza.id))
-		}
-
-		if len(team.pizzas) == 0 {
+		if !team.delivered {
 			continue
 		}
 
 		totalScore += team.Score()
 
-		fmt.Fprintf(out, "%v %v\n", team.peopleCount, strings.Join(pizzaIDs, " "))
+		fmt.Fprintf(out, "%v %v\n", team.peopleCount, strings.Join(team.PizzaIDs(), " "))
 	}
 
 	// RETURN OUT SUMMARY
 	return stats{
-		fn:    fn,
-		score: totalScore,
+		fn:       fn,
+		score:    totalScore,
+		duration: time.Since(t0),
 	}
 }
 
 type team struct {
+	delivered         bool
 	teamTypeID        int
 	peopleCount       int
 	pizzas            pizzas
@@ -136,14 +114,60 @@ type team struct {
 	ingredients       []string
 }
 
+func NewTeam(teamTypeID int) *team {
+	return &team{
+		teamTypeID:        teamTypeID,
+		peopleCount:       teamTypeID + 2,
+		ingredients:       make([]string, 0, teamTypeID+2),
+		uniqueIngredients: NewSet(),
+	}
+}
+
+func (t *team) PizzaIDs() []string {
+	ids := []string{}
+
+	for _, pizza := range t.pizzas {
+		ids = append(ids, strconv.Itoa(pizza.id))
+	}
+
+	return ids
+}
+
+func (t *team) Delivery(pizzas pizzas) {
+	t.delivered = true
+	copy(t.pizzas, pizzas) // deep copy
+	t.ingredients = append(t.ingredients, pizzas.ingredients()...)
+	t.uniqueIngredients.Add(t.ingredients...)
+}
+
 func (t *team) Score() int {
 	return len(t.uniqueIngredients) * len(t.uniqueIngredients)
 }
 
-type pizzas []pizza
-type pizza struct {
+type pizzas []Pizza
+
+func (ps pizzas) ingredients() []string {
+	out := []string{}
+
+	for _, p := range ps {
+		out = append(out, p.ingredients...)
+	}
+
+	return out
+}
+
+type Pizza struct {
 	id          int
 	ingredients []string
+}
+
+func NewPizza(id int, ingredients []string) Pizza {
+	sort.Strings(ingredients)
+
+	return Pizza{
+		id:          id,
+		ingredients: ingredients,
+	}
 }
 
 func main() {
@@ -159,16 +183,21 @@ func main() {
 	go func() {
 		defer rdc.Done()
 
-		var sumP, sumT int
+		var (
+			sumP, sumT    int
+			totalDuration int64
+		)
 		for res := range out {
 			sumP += res.score
 			sumT += res.maxScore
-			fmt.Printf("file: %v, score: %v, max score: %v, difference: %v\n", res.fn, res.score, res.maxScore, res.maxScore-res.score)
+			totalDuration += res.duration.Nanoseconds()
+
+			fmt.Printf("file: %v, score: %v, max score: %v, difference: %v, duration: %v\n", res.fn, res.score, res.maxScore, res.maxScore-res.score, res.duration)
 		}
 
 		fmt.Println("total")
-		fmt.Printf("score: %v, max score: %v, difference: %v, perc. missing: %f%%: \n",
-			sumP, sumT, sumT-sumP, 100*float64(sumT-sumP)/float64(sumT))
+		fmt.Printf("score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration %v: \n",
+			sumP, sumT, sumT-sumP, 100*float64(sumT-sumP)/float64(sumT), time.Duration(totalDuration)*time.Nanosecond)
 	}()
 
 	// run tasks
@@ -195,6 +224,7 @@ type stats struct {
 	score    int
 	maxScore int
 	fn       string
+	duration time.Duration
 }
 
 func lineToIntSlice(line string) []int {
