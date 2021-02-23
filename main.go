@@ -94,6 +94,8 @@ func run(fn string) stats {
 		pizzaNeedle += team.peopleCount
 	}
 
+	// TODO: try to sort by "sfiga" and swap pizzas IF the score improves
+
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
 	dieIf(err)
