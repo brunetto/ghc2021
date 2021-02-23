@@ -41,7 +41,7 @@ func run(fn string) stats {
 
 	pizzaCount := tmp[0]
 	teamsCount := tmp[1:]
-	teams := []*team{}
+	teams := []*Team{}
 
 	// populate teams
 	for teamTypeID, teamTypeCount := range teamsCount {
@@ -77,10 +77,20 @@ func run(fn string) stats {
 		pizzaNeedle += team.peopleCount
 	}
 
+	fmt.Println("LEFTOVER", len(pizzas)-pizzaNeedle, "/", len(pizzas))
+
 	// sort by boredom
 	// sort.Slice(teams, func(i, j int) bool { return teams[i].boredom > teams[j].boredom })
 
-	// TODO: try to use leftovers pizzas
+	// TODO: try to use leftovers pizzas and waste the previously assigned pizzas
+	// for i, t := range teams[0 : len(pizzas)-pizzaNeedle] {
+	// 	tt := t.Clone()
+	// 	tt.ChangePizza(0, pizzas[pizzaNeedle+1])
+	// 	if tt.Score() > t.Score() {
+	// 		teams[i] = tt
+	// 		pizzaNeedle++
+	// 	}
+	// }
 
 	// TODO: try to sort by "sfiga" and swap pizzas IF the score improves
 
@@ -111,7 +121,7 @@ func run(fn string) stats {
 	}
 }
 
-type team struct {
+type Team struct {
 	delivered         bool
 	teamTypeID        int
 	peopleCount       int
@@ -121,14 +131,14 @@ type team struct {
 	boredom           int
 }
 
-func NewTeam(teamTypeID int) *team {
-	return &team{
+func NewTeam(teamTypeID int) *Team {
+	return &Team{
 		teamTypeID:  teamTypeID,
 		peopleCount: teamTypeID + 2,
 	}
 }
 
-func (t *team) PizzaIDs() []string {
+func (t *Team) PizzaIDs() []string {
 	ids := []string{}
 
 	for _, pizza := range t.pizzas {
@@ -138,19 +148,40 @@ func (t *team) PizzaIDs() []string {
 	return ids
 }
 
-func (t *team) Delivery(p pizzas) {
+func (t *Team) ChangePizza(i int, p Pizza) *Team {
+	if i > len(t.pizzas) {
+		dieIf(errors.New("pizza index greater than pizzas lenght"))
+	}
+
+	t.pizzas[i] = p
+	t.Recalculate()
+
+	return t
+}
+
+func (t *Team) Clone() *Team {
+	tt := *t
+
+	return &tt
+}
+
+func (t *Team) Delivery(p pizzas) {
 	t.delivered = true
 	t.pizzas = make(pizzas, t.peopleCount)
 	copy(t.pizzas, p) // deep copy
 
-	t.ingredients = make([]string, 0, len(p.ingredients()))
-	t.ingredients = append(t.ingredients, p.ingredients()...)
+	t.Recalculate()
+}
+
+func (t *Team) Recalculate() {
+	t.ingredients = make([]string, 0, len(t.pizzas.ingredients()))
+	t.ingredients = append(t.ingredients, t.pizzas.ingredients()...)
 
 	t.uniqueIngredients = NewSet().Add(t.ingredients...)
 	t.boredom = len(t.ingredients) - len(t.uniqueIngredients)
 }
 
-func (t *team) Score() int {
+func (t *Team) Score() int {
 	return len(t.uniqueIngredients) * len(t.uniqueIngredients)
 }
 
@@ -253,4 +284,50 @@ func dieIf(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+type Set map[string]nothing
+type nothing struct{}
+
+func NewSet() Set {
+	return Set{}
+}
+
+func (s Set) Add(items ...string) Set {
+	if s == nil {
+		s = NewSet()
+	}
+
+	for _, i := range items {
+		s[i] = nothing{}
+	}
+
+	return s
+}
+
+func (s Set) Contains(item string) bool {
+	_, exists := s[item]
+	return exists
+}
+
+func (s Set) Intersect(other Set) Set {
+	var smaller, larger Set
+
+	if len(s) < len(other) {
+		smaller = s
+		larger = other
+	} else {
+		smaller = other
+		larger = s
+	}
+
+	res := make(Set, len(smaller))
+
+	for item := range smaller {
+		if larger.Contains(item) {
+			res.Add(item)
+		}
+	}
+
+	return res
 }
