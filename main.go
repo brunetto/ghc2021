@@ -267,6 +267,7 @@ type stats struct {
 	maxScore      int
 	fn            string
 	duration      time.Duration
+	details       interface{}
 }
 
 func (s *stats) String() string {
@@ -280,8 +281,8 @@ func (s *stats) String() string {
 		perc = 100 * float64(s.maxScore-s.score) / float64(s.maxScore)
 	}
 
-	return fmt.Sprintf("file: %40v | score: %12v | max score: %12v | difference: %12v | perc. missing: %3.2f%% | duration: %7v",
-		fn, s.score, s.maxScore, s.maxScore-s.score, perc, s.duration)
+	return fmt.Sprintf("file: %40v | score: %12v | max score: %12v | difference: %12v | perc. missing: %3.2f%% | duration: %15v | %v",
+		fn, s.score, s.maxScore, s.maxScore-s.score, perc, s.duration, s.details)
 }
 
 func (s *stats) Add(s1 *stats) {
