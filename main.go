@@ -89,7 +89,7 @@ func main() {
 	go func() {
 		defer rdc.Done()
 
-		var total *stats
+		total := &stats{}
 		for res := range out {
 			total.Add(res)
 
