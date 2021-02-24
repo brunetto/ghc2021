@@ -139,7 +139,7 @@ func (s *stats) String() string {
 		perc = 100 * float64(s.maxScore-s.score) / float64(s.maxScore)
 	}
 
-	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration: %v",
+	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %.2f%%, duration: %v",
 		fn, s.score, s.maxScore, s.maxScore-s.score, perc, s.duration)
 }
 
