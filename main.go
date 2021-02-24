@@ -96,7 +96,7 @@ func main() {
 			fmt.Println(res)
 		}
 
-		fmt.Println("total")
+		fmt.Println("\ntotal")
 		fmt.Println(total)
 	}()
 
@@ -134,11 +134,17 @@ func (s *stats) String() string {
 		fn = "aggregated"
 	}
 
-	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration: %v\n",
-		fn, s.score, s.maxScore, s.maxScore-s.score, 100*float64(s.maxScore-s.score)/float64(s.maxScore), s.duration)
+	perc := 0.
+	if s.maxScore != 0 {
+		perc = 100 * float64(s.maxScore-s.score) / float64(s.maxScore)
+	}
+
+	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration: %v",
+		fn, s.score, s.maxScore, s.maxScore-s.score, perc, s.duration)
 }
 
 func (s *stats) Add(s1 *stats) {
+	s.isAggregation = true
 	s.score += s1.score
 	s.maxScore += s1.maxScore
 	s.duration = time.Duration(s.duration.Nanoseconds()+s.duration.Nanoseconds()) * time.Nanosecond
