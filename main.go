@@ -22,7 +22,9 @@ var files = []string{
 	"f_libraries_of_the_world.txt",
 }
 
-func run(fn string) stats {
+func run(fn string) *stats {
+	t0 := time.Now()
+
 	// READ DATA
 	in, err := os.Open(fn)
 	dieIf(err)
@@ -69,7 +71,10 @@ func run(fn string) stats {
 	//
 
 	// RETURN OUT SUMMARY
-	return stats{}
+	return &stats{
+		fn:       fn,
+		duration: time.Since(t0),
+	}
 }
 
 func main() {
@@ -77,30 +82,29 @@ func main() {
 
 	wkrs := sync.WaitGroup{}
 	rdc := sync.WaitGroup{}
-	out := make(chan stats, len(files))
+	out := make(chan *stats, len(files))
 
 	// print result as they arrive, concurrency safe
 	rdc.Add(1)
 	go func() {
 		defer rdc.Done()
 
-		var sumP, sumT int
+		var total *stats
 		for res := range out {
-			sumP += res.score
-			sumT += res.maxScore
-			fmt.Printf("file: %v, score: %v, max score: %v, difference: %v\n", res.fn, res.score, res.maxScore, res.maxScore-res.score)
+			total.Add(res)
+
+			fmt.Println(res)
 		}
 
 		fmt.Println("total")
-		fmt.Printf("score: %v, max score: %v, difference: %v, perc. missing: %f%%: \n",
-			sumP, sumT, sumT-sumP, 100*float64(sumT-sumP)/float64(sumT))
+		fmt.Println(total)
 	}()
 
 	// run tasks
 	for _, fn := range files {
 		wkrs.Add(1)
 
-		go func(wg *sync.WaitGroup, fn string, out chan stats) {
+		go func(wg *sync.WaitGroup, fn string, out chan *stats) {
 			defer wg.Done()
 
 			out <- run(fn)
@@ -117,9 +121,27 @@ func main() {
 }
 
 type stats struct {
-	score    int
-	maxScore int
-	fn       string
+	isAggregation bool
+	score         int
+	maxScore      int
+	fn            string
+	duration      time.Duration
+}
+
+func (s *stats) String() string {
+	fn := s.fn
+	if s.isAggregation {
+		fn = "aggregated"
+	}
+
+	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration: %v\n",
+		fn, s.score, s.maxScore, s.maxScore-s.score, 100*float64(s.maxScore-s.score)/float64(s.maxScore), s.duration)
+}
+
+func (s *stats) Add(s1 *stats) {
+	s.score += s1.score
+	s.maxScore += s1.maxScore
+	s.duration = time.Duration(s.duration.Nanoseconds()+s.duration.Nanoseconds()) * time.Nanosecond
 }
 
 func lineToIntSlice(line string) []int {
