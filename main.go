@@ -77,7 +77,7 @@ func run(fn string) stats {
 		pizzaNeedle += team.peopleCount
 	}
 
-	fmt.Println("LEFTOVER", len(pizzas)-pizzaNeedle, "/", len(pizzas))
+	// fmt.Println("LEFTOVER", len(pizzas)-pizzaNeedle, "/", len(pizzas))
 
 	// sort by boredom
 	// sort.Slice(teams, func(i, j int) bool { return teams[i].boredom > teams[j].boredom })
