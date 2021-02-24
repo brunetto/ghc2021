@@ -100,7 +100,10 @@ func main() {
 			fmt.Println(res)
 		}
 
-		fmt.Println("\ntotal")
+		fmt.Printf("\n-------------------------------" +
+			"--------------------------------------------" +
+			"--------------------------------------------" +
+			"-----------------------------------------\n\n")
 		fmt.Println(total)
 	}()
 
@@ -143,7 +146,7 @@ func (s *stats) String() string {
 		perc = 100 * float64(s.maxScore-s.score) / float64(s.maxScore)
 	}
 
-	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %.2f%%, duration: %v",
+	return fmt.Sprintf("file: %40v | score: %12v | max score: %12v | difference: %12v | perc. missing: %3.2f%% | duration: %7v",
 		fn, s.score, s.maxScore, s.maxScore-s.score, perc, s.duration)
 }
 
