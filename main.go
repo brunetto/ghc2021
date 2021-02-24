@@ -43,9 +43,11 @@ func run(fn string) *stats {
 	teamsCount := tmp[1:]
 	teams := []*Team{}
 
+	peopleTotalCount := 0
 	// populate teams
 	for teamTypeID, teamTypeCount := range teamsCount {
 		for j := 0; j < teamTypeCount; j++ {
+			peopleTotalCount += teamTypeID + 2
 			teams = append(teams, NewTeam(teamTypeID))
 		}
 	}
@@ -118,6 +120,12 @@ func run(fn string) *stats {
 		fn:       fn,
 		score:    totalScore,
 		duration: time.Since(t0),
+		details: map[string]interface{}{
+			"leftovers":             len(pizzas) - pizzaNeedle,
+			"people":                peopleTotalCount,
+			"pizzas":                len(pizzas),
+			"planned_hungry_people": peopleTotalCount - len(pizzas),
+		},
 	}
 }
 
