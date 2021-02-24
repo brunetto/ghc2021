@@ -22,7 +22,7 @@ var files = []string{
 	"e_many_teams.in",
 }
 
-func run(fn string) stats {
+func run(fn string) *stats {
 	t0 := time.Now()
 
 	// READ DATA
@@ -114,7 +114,7 @@ func run(fn string) stats {
 	}
 
 	// RETURN OUT SUMMARY
-	return stats{
+	return &stats{
 		fn:       fn,
 		score:    totalScore,
 		duration: time.Since(t0),
@@ -217,35 +217,29 @@ func main() {
 
 	wkrs := sync.WaitGroup{}
 	rdc := sync.WaitGroup{}
-	out := make(chan stats, len(files))
+	out := make(chan *stats, len(files))
 
 	// print result as they arrive, concurrency safe
 	rdc.Add(1)
 	go func() {
 		defer rdc.Done()
 
-		var (
-			sumP, sumT    int
-			totalDuration int64
-		)
+		total := &stats{}
 		for res := range out {
-			sumP += res.score
-			sumT += res.maxScore
-			totalDuration += res.duration.Nanoseconds()
+			total.Add(res)
 
-			fmt.Printf("file: %v, score: %v, max score: %v, difference: %v, duration: %v\n", res.fn, res.score, res.maxScore, res.maxScore-res.score, res.duration)
+			fmt.Println(res)
 		}
 
-		fmt.Println("total")
-		fmt.Printf("score: %v, max score: %v, difference: %v, perc. missing: %f%%, duration: %v\n",
-			sumP, sumT, sumT-sumP, 100*float64(sumT-sumP)/float64(sumT), time.Duration(totalDuration)*time.Nanosecond)
+		fmt.Println("\ntotal")
+		fmt.Println(total)
 	}()
 
 	// run tasks
 	for _, fn := range files {
 		wkrs.Add(1)
 
-		go func(wg *sync.WaitGroup, fn string, out chan stats) {
+		go func(wg *sync.WaitGroup, fn string, out chan *stats) {
 			defer wg.Done()
 
 			out <- run(fn)
@@ -262,10 +256,33 @@ func main() {
 }
 
 type stats struct {
-	score    int
-	maxScore int
-	fn       string
-	duration time.Duration
+	isAggregation bool
+	score         int
+	maxScore      int
+	fn            string
+	duration      time.Duration
+}
+
+func (s *stats) String() string {
+	fn := s.fn
+	if s.isAggregation {
+		fn = "aggregated"
+	}
+
+	perc := 0.
+	if s.maxScore != 0 {
+		perc = 100 * float64(s.maxScore-s.score) / float64(s.maxScore)
+	}
+
+	return fmt.Sprintf("file: %v, score: %v, max score: %v, difference: %v, perc. missing: %.2f%%, duration: %v",
+		fn, s.score, s.maxScore, s.maxScore-s.score, perc, s.duration)
+}
+
+func (s *stats) Add(s1 *stats) {
+	s.isAggregation = true
+	s.score += s1.score
+	s.maxScore += s1.maxScore
+	s.duration = time.Duration(s.duration.Nanoseconds()+s.duration.Nanoseconds()) * time.Nanosecond
 }
 
 func lineToIntSlice(line string) []int {
