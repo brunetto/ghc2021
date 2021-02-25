@@ -89,7 +89,7 @@ func run(fn string) *stats {
 	}
 
 	for _, in := range intersections {
-		in.SwitchGreenProportional(simDurationSecs)
+		in.SwitchGreenProportionalPerc(simDurationSecs)
 	}
 
 	//
@@ -212,6 +212,18 @@ func (in *Intersection) SwitchGreenProportional(simDurationSecs int) {
 	}
 }
 
+func (in *Intersection) SwitchGreenProportionalPerc(simDurationSecs int) {
+	totalTransits := 0
+	for _, s := range in.In {
+		totalTransits += s.Transits
+	}
+
+	for _, s := range in.In {
+		perc := int(float64(s.Transits) / float64(totalTransits))
+		in.Schedule = append(in.Schedule, NewGreen(s.Name, simDurationSecs, perc))
+	}
+}
+
 func (is *Intersections) Print() string {
 	out := ""
 
@@ -296,8 +308,8 @@ func IsIn(list Greens, street string) (int, bool) {
 }
 
 func NewGreen(street string, simDurationSecs, duration int) *Green {
-	if duration > simDurationSecs {
-		log.Println("duration", duration)
+	if duration >= simDurationSecs {
+		log.Println("duration aaaaaaaa", duration)
 	}
 
 	return &Green{
