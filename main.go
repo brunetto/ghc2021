@@ -220,6 +220,10 @@ func (in *Intersection) SwitchGreenProportionalPerc(simDurationSecs int) {
 
 	for _, s := range in.In {
 		perc := int(float64(s.Transits) / float64(totalTransits))
+		if perc == 0 {
+			perc = 1
+		}
+
 		in.Schedule = append(in.Schedule, NewGreen(s.Name, simDurationSecs, perc))
 	}
 }
