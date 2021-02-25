@@ -40,11 +40,11 @@ func run(fn string) *stats {
 	tmp := lineToIntSlice(s.Text())
 
 	// sim desription
-	// simDurationSecs := tmp[0]
+	simDurationSecs := tmp[0]
 	intersectionsCount := tmp[1]
 	streetCount := tmp[2]
 	carCount := tmp[3]
-	// bonus := tmp[4]
+	bonus := tmp[4]
 
 	// init intersections
 	intersections := make(Intersections, intersectionsCount)
@@ -64,7 +64,7 @@ func run(fn string) *stats {
 
 		// populate intersections
 		intersections[street.BeginID].AddOut(street)
-		intersections[street.EndID].AddIn(street)
+		intersections[street.EndID].AddIn(&street)
 	}
 
 	// read cars
@@ -76,15 +76,27 @@ func run(fn string) *stats {
 
 		cars = append(cars, NewCar(s.Text(), streets))
 	}
+	//
+	//
+	//
+	//
+	// DO THINGS
 
 	for _, car := range cars {
 		for _, street := range car.Path {
-			intersections[street.EndID].SwitchGreenFor(street.Name, street.Length+1)
+			intersections[street.EndID].AddCarToTheTransits(street.Name)
 		}
 	}
 
-	intersections.SwitchAllNSec(10)
+	for _, in := range intersections {
+		in.SwitchGreenProportional(simDurationSecs)
+	}
 
+	//
+	//
+	//
+	//
+	//
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
 	dieIf(err)
@@ -97,15 +109,18 @@ func run(fn string) *stats {
 	return &stats{
 		fn:       fn,
 		duration: time.Since(t0),
+		score:    0,
+		maxScore: cars.MaxScore(bonus, simDurationSecs),
 	}
 }
 
 type Streets map[string]Street
 type Street struct {
-	BeginID int
-	EndID   int
-	Name    string
-	Length  int
+	BeginID  int
+	EndID    int
+	Name     string
+	Length   int
+	Transits int
 }
 
 func NewStreet(line string) Street {
@@ -128,45 +143,72 @@ func NewStreet(line string) Street {
 }
 
 type Cars []Car
+
+func (cs Cars) MaxScore(bonus, simDurationSecs int) int {
+	var sc int
+
+	for _, c := range cs {
+		sc += c.MaxScore(bonus, simDurationSecs)
+	}
+
+	return sc
+}
+
 type Car struct {
 	StreetCount int
 	Path        []Street
 }
 
+func (c Car) MaxScore(bonus, simDurationSecs int) int {
+	var length int
+
+	for _, street := range c.Path[1:] {
+		length += street.Length
+	}
+
+	return bonus + (simDurationSecs - length)
+}
+
+// func (c Car) WhereAmI(t int) Position {
+// 	return Position{}
+// }
+
+// type Position struct {
+// 	StreetName     string
+// 	StreetPosition string
+// }
+
 type Intersections []*Intersection
 
-func (is *Intersections) SwitchFirstIfPresent() {
+func (is *Intersections) SwitchFirstIfPresent(simDurationSecs int) {
 	for _, i := range *is {
 		if len(i.In) == 0 {
 			continue
 		}
 
-		i.Schedule = append(i.Schedule, Green{
-			Street:   i.In[0].Name,
-			Duration: 1,
-		})
+		i.Schedule = append(i.Schedule, NewGreen(i.In[0].Name, simDurationSecs, 1))
 	}
 }
 
-func (is *Intersections) SwitchAllOneSec() {
+func (is *Intersections) SwitchAllOneSec(simDurationSecs int) {
 	for _, i := range *is {
 		for _, s := range i.In {
-			i.Schedule = append(i.Schedule, Green{
-				Street:   s.Name,
-				Duration: 1,
-			})
+			i.Schedule = append(i.Schedule, NewGreen(s.Name, simDurationSecs, 1))
 		}
 	}
 }
 
-func (is *Intersections) SwitchAllNSec(n int) {
+func (is *Intersections) SwitchAllNSec(simDurationSecs, n int) {
 	for _, i := range *is {
 		for _, s := range i.In {
-			i.Schedule = append(i.Schedule, Green{
-				Street:   s.Name,
-				Duration: n,
-			})
+			i.Schedule = append(i.Schedule, NewGreen(s.Name, simDurationSecs, 1))
 		}
+	}
+}
+
+func (in *Intersection) SwitchGreenProportional(simDurationSecs int) {
+	for _, s := range in.In {
+		in.Schedule = append(in.Schedule, NewGreen(s.Name, simDurationSecs, s.Transits))
 	}
 }
 
@@ -197,32 +239,53 @@ func (is *Intersections) Print() string {
 }
 
 type Intersection struct {
-	ID       int
-	In       []Street
-	Out      []Street
+	ID int
+	In []*Street
+	// Out      []*Street
 	Schedule Greens
 }
 
-func (i *Intersection) AddIn(s Street) {
+func (i *Intersection) AddIn(s *Street) {
 	i.In = append(i.In, s)
 }
 func (i *Intersection) AddOut(s Street) {
-	i.Out = append(i.Out, s)
+	// i.Out = append(i.Out, s)
 }
 
-func (in *Intersection) SwitchGreenFor(street string, length int) {
+func (i *Intersection) AddCarToTheTransits(street string) {
+	idx, exists := IsInStreet(i.In, street)
+	if !exists {
+		dieIf(errors.New("whoah"))
+	}
+
+	i.In[idx].Transits++
+
+}
+
+func (in *Intersection) SwitchGreenFor(street string, simDurationSecs, length int) {
 	_, is := IsIn(in.Schedule, street)
 	if is {
 		return
 	}
 
-	in.Schedule = append(in.Schedule, Green{
-		Street:   street,
-		Duration: length,
-	})
+	in.Schedule = append(in.Schedule, NewGreen(street, simDurationSecs, length))
 }
 
-func IsIn(list []Green, street string) (int, bool) {
+// func (in *Intersection) AddCarToQueue(car Car) {
+// 	in.Queue = append(in.Queue, car)
+// }
+
+func IsInStreet(list []*Street, street string) (int, bool) {
+	for i, s := range list {
+		if s.Name == street {
+			return i, true
+		}
+	}
+
+	return 0, false
+}
+
+func IsIn(list Greens, street string) (int, bool) {
 	for i, g := range list {
 		if g.Street == street {
 			return i, true
@@ -232,7 +295,18 @@ func IsIn(list []Green, street string) (int, bool) {
 	return 0, false
 }
 
-type Greens []Green
+func NewGreen(street string, simDurationSecs, duration int) *Green {
+	if duration > simDurationSecs {
+		log.Println("duration", duration)
+	}
+
+	return &Green{
+		Street:   street,
+		Duration: duration,
+	}
+}
+
+type Greens []*Green
 type Green struct {
 	Street   string
 	Duration int
