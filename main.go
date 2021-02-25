@@ -91,29 +91,12 @@ func run(fn string) *stats {
 		}
 	}
 
-	// DO THINGS
-	//
-	//
-	//
-	//
-	//
-	//
-	//
+	intersections.SwitchFirstIfPresent()
 
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
 	dieIf(err)
 	defer out.Close()
-
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
 
 	_, err = out.WriteString(intersections.Print())
 	dieIf(err)
@@ -173,6 +156,19 @@ func (i *Intersection) AddOut(s Street) {
 	i.Out = append(i.Out, s)
 }
 
+func (is *Intersections) SwitchFirstIfPresent() {
+	for _, i := range *is {
+		if len(i.In) == 0 {
+			continue
+		}
+
+		i.Schedule = append(i.Schedule, Green{
+			Street:   i.In[0].Name,
+			Duration: 1,
+		})
+	}
+}
+
 func (is *Intersections) Print() string {
 	out := ""
 
@@ -189,7 +185,7 @@ func (is *Intersections) Print() string {
 		out += fmt.Sprintf("%v\n", len(i.Schedule))
 
 		for _, g := range i.Schedule {
-			out += fmt.Sprintf("%v %v", g.Street, g.Duration)
+			out += fmt.Sprintf("%v %v\n", g.Street, g.Duration)
 		}
 	}
 
