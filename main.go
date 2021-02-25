@@ -83,8 +83,6 @@ func run(fn string) *stats {
 		}
 	}
 
-	intersections.SwitchAllNSec(10)
-
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
 	dieIf(err)
