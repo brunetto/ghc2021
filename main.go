@@ -219,7 +219,7 @@ func (in *Intersection) SwitchGreenProportionalPerc(simDurationSecs int) {
 	}
 
 	for _, s := range in.In {
-		perc := int64(float64(s.Transits) / float64(totalTransits))
+		perc := 100 * int64(float64(s.Transits)/float64(totalTransits))
 		if perc < 1 {
 			perc = 1
 		}
@@ -314,6 +314,10 @@ func IsIn(list Greens, street string) (int, bool) {
 func NewGreen(street string, simDurationSecs int, duration int64) *Green {
 	if duration >= int64(simDurationSecs) {
 		log.Println("duration aaaaaaaa", duration)
+		duration = duration / int64(3)
+		if duration < 1 {
+			duration = 1
+		}
 	}
 
 	return &Green{
