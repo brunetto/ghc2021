@@ -48,7 +48,7 @@ func run(fn string) *stats {
 
 	// init intersections
 	intersections := make(Intersections, intersectionsCount)
-	for i, _ := range intersections {
+	for i := range intersections {
 		intersections[i] = &Intersection{ID: i}
 	}
 
@@ -91,7 +91,7 @@ func run(fn string) *stats {
 		}
 	}
 
-	intersections.SwitchFirstIfPresent()
+	intersections.SwitchAllOneSec()
 
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
@@ -166,6 +166,17 @@ func (is *Intersections) SwitchFirstIfPresent() {
 			Street:   i.In[0].Name,
 			Duration: 1,
 		})
+	}
+}
+
+func (is *Intersections) SwitchAllOneSec() {
+	for _, i := range *is {
+		for _, s := range i.In {
+			i.Schedule = append(i.Schedule, Green{
+				Street:   s.Name,
+				Duration: 1,
+			})
+		}
 	}
 }
 
