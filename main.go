@@ -40,11 +40,11 @@ func run(fn string) *stats {
 	tmp := lineToIntSlice(s.Text())
 
 	// sim desription
-	simDurationSecs := tmp[0]
+	// simDurationSecs := tmp[0]
 	intersectionsCount := tmp[1]
 	streetCount := tmp[2]
 	carCount := tmp[3]
-	bonus := tmp[4]
+	// bonus := tmp[4]
 
 	// init intersections
 	intersections := make(Intersections, intersectionsCount)
@@ -77,17 +77,9 @@ func run(fn string) *stats {
 		cars = append(cars, NewCar(s.Text(), streets))
 	}
 
-	// check print
-	if false {
-		fmt.Println(simDurationSecs, intersectionsCount, streetCount, carCount, bonus)
-		for _, s := range streets {
-			fmt.Println(s)
-		}
-		for _, s := range cars {
-			fmt.Println(s)
-		}
-		for _, intersec := range intersections {
-			fmt.Println(intersec.ID, intersec.Out)
+	for _, car := range cars {
+		for _, street := range car.Path {
+			intersections[street.EndID].SwitchGreenFor(street.Name, street.Length+1)
 		}
 	}
 
@@ -113,7 +105,7 @@ type Street struct {
 	BeginID int
 	EndID   int
 	Name    string
-	Lenght  int
+	Length  int
 }
 
 func NewStreet(line string) Street {
@@ -130,7 +122,7 @@ func NewStreet(line string) Street {
 	lenght, err := strconv.Atoi(tmp[3])
 	dieIf(err)
 
-	s.Lenght = lenght
+	s.Length = lenght
 
 	return s
 }
@@ -142,19 +134,6 @@ type Car struct {
 }
 
 type Intersections []*Intersection
-type Intersection struct {
-	ID       int
-	In       []Street
-	Out      []Street
-	Schedule Greens
-}
-
-func (i *Intersection) AddIn(s Street) {
-	i.In = append(i.In, s)
-}
-func (i *Intersection) AddOut(s Street) {
-	i.Out = append(i.Out, s)
-}
 
 func (is *Intersections) SwitchFirstIfPresent() {
 	for _, i := range *is {
@@ -215,6 +194,42 @@ func (is *Intersections) Print() string {
 	out = fmt.Sprintf("%v\n", ints) + out
 
 	return out
+}
+
+type Intersection struct {
+	ID       int
+	In       []Street
+	Out      []Street
+	Schedule Greens
+}
+
+func (i *Intersection) AddIn(s Street) {
+	i.In = append(i.In, s)
+}
+func (i *Intersection) AddOut(s Street) {
+	i.Out = append(i.Out, s)
+}
+
+func (in *Intersection) SwitchGreenFor(street string, length int) {
+	_, is := IsIn(in.Schedule, street)
+	if is {
+		return
+	}
+
+	in.Schedule = append(in.Schedule, Green{
+		Street:   street,
+		Duration: length,
+	})
+}
+
+func IsIn(list []Green, street string) (int, bool) {
+	for i, g := range list {
+		if g.Street == street {
+			return i, true
+		}
+	}
+
+	return 0, false
 }
 
 type Greens []Green
