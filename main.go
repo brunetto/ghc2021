@@ -14,12 +14,12 @@ import (
 )
 
 var files = []string{
-	"a_example.txt",
-	"b_read_on.txt",
-	"c_incunabula.txt",
-	"d_tough_choices.txt",
-	"e_so_many_books.txt",
-	"f_libraries_of_the_world.txt",
+	"a.txt",
+	"b.txt",
+	"c.txt",
+	"d.txt",
+	"e.txt",
+	"f.txt",
 }
 
 func run(fn string) *stats {
@@ -37,14 +37,59 @@ func run(fn string) *stats {
 	if !s.Scan() {
 		dieIf(errors.New("failed on first line"))
 	}
-	_ /*tmp :*/ = lineToIntSlice(s.Text())
+	tmp := lineToIntSlice(s.Text())
 
-	// CALCULATE MAX SCORE
-	//
-	//
-	//
-	//
-	//
+	// sim desription
+	simDurationSecs := tmp[0]
+	intersectionsCount := tmp[1]
+	streetCount := tmp[2]
+	carCount := tmp[3]
+	bonus := tmp[4]
+
+	// init intersections
+	intersections := make(Intersections, intersectionsCount)
+	for i, _ := range intersections {
+		intersections[i] = &Intersection{ID: i}
+	}
+
+	// read streets
+	streets := Streets{}
+	for i := 0; i < streetCount; i++ {
+		if !s.Scan() {
+			dieIf(errors.New("failed reading streets"))
+		}
+
+		street := NewStreet(s.Text())
+		streets[street.Name] = street
+
+		// populate intersections
+		intersections[street.BeginID].AddOut(street)
+		intersections[street.EndID].AddIn(street)
+	}
+
+	// read cars
+	cars := make(Cars, 0, carCount)
+	for i := 0; i < carCount; i++ {
+		if !s.Scan() {
+			dieIf(errors.New("failed reading cars"))
+		}
+
+		cars = append(cars, NewCar(s.Text(), streets))
+	}
+
+	// check print
+	if false {
+		fmt.Println(simDurationSecs, intersectionsCount, streetCount, carCount, bonus)
+		for _, s := range streets {
+			fmt.Println(s)
+		}
+		for _, s := range cars {
+			fmt.Println(s)
+		}
+		for _, intersec := range intersections {
+			fmt.Println(intersec.ID, intersec.Out)
+		}
+	}
 
 	// DO THINGS
 	//
@@ -70,11 +115,110 @@ func run(fn string) *stats {
 	//
 	//
 
+	_, err = out.WriteString(intersections.Print())
+	dieIf(err)
+
 	// RETURN OUT SUMMARY
 	return &stats{
 		fn:       fn,
 		duration: time.Since(t0),
 	}
+}
+
+type Streets map[string]Street
+type Street struct {
+	BeginID int
+	EndID   int
+	Name    string
+	Lenght  int
+}
+
+func NewStreet(line string) Street {
+	s := Street{}
+
+	tmp := strings.Split(line, " ")
+	begin, err := strconv.Atoi(tmp[0])
+	dieIf(err)
+	end, err := strconv.Atoi(tmp[1])
+	dieIf(err)
+
+	s.BeginID, s.EndID = begin, end
+	s.Name = tmp[2]
+	lenght, err := strconv.Atoi(tmp[3])
+	dieIf(err)
+
+	s.Lenght = lenght
+
+	return s
+}
+
+type Cars []Car
+type Car struct {
+	StreetCount int
+	Path        []Street
+}
+
+type Intersections []*Intersection
+type Intersection struct {
+	ID       int
+	In       []Street
+	Out      []Street
+	Schedule Greens
+}
+
+func (i *Intersection) AddIn(s Street) {
+	i.In = append(i.In, s)
+}
+func (i *Intersection) AddOut(s Street) {
+	i.Out = append(i.Out, s)
+}
+
+func (is *Intersections) Print() string {
+	out := ""
+
+	// print scheduled intersec count
+	ints := 0
+	for _, i := range *is {
+		if len(i.Schedule) == 0 {
+			continue
+		}
+
+		ints++ // scheduled intersections count
+
+		out += fmt.Sprintf("%v\n", i.ID)
+		out += fmt.Sprintf("%v\n", len(i.Schedule))
+
+		for _, g := range i.Schedule {
+			out += fmt.Sprintf("%v %v", g.Street, g.Duration)
+		}
+	}
+
+	// scheduled intersection count
+	out = fmt.Sprintf("%v\n", ints) + out
+
+	return out
+}
+
+type Greens []Green
+type Green struct {
+	Street   string
+	Duration int
+}
+
+func NewCar(line string, streets Streets) Car {
+	c := Car{}
+
+	tmp := strings.Split(line, " ")
+	sc, err := strconv.Atoi(tmp[0])
+	dieIf(err)
+
+	c.StreetCount = sc
+
+	for _, streetName := range tmp[1:] {
+		c.Path = append(c.Path, streets[streetName])
+	}
+
+	return c
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
