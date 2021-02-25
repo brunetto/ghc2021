@@ -120,7 +120,7 @@ type Street struct {
 	EndID    int
 	Name     string
 	Length   int
-	Transits int
+	Transits int64
 }
 
 func NewStreet(line string) Street {
@@ -213,14 +213,14 @@ func (in *Intersection) SwitchGreenProportional(simDurationSecs int) {
 }
 
 func (in *Intersection) SwitchGreenProportionalPerc(simDurationSecs int) {
-	totalTransits := 0
+	var totalTransits int64
 	for _, s := range in.In {
 		totalTransits += s.Transits
 	}
 
 	for _, s := range in.In {
-		perc := int(float64(s.Transits) / float64(totalTransits))
-		if perc == 0 {
+		perc := int64(float64(s.Transits) / float64(totalTransits))
+		if perc < 1 {
 			perc = 1
 		}
 
@@ -284,7 +284,7 @@ func (in *Intersection) SwitchGreenFor(street string, simDurationSecs, length in
 		return
 	}
 
-	in.Schedule = append(in.Schedule, NewGreen(street, simDurationSecs, length))
+	in.Schedule = append(in.Schedule, NewGreen(street, simDurationSecs, int64(length)))
 }
 
 // func (in *Intersection) AddCarToQueue(car Car) {
@@ -311,8 +311,8 @@ func IsIn(list Greens, street string) (int, bool) {
 	return 0, false
 }
 
-func NewGreen(street string, simDurationSecs, duration int) *Green {
-	if duration >= simDurationSecs {
+func NewGreen(street string, simDurationSecs int, duration int64) *Green {
+	if duration >= int64(simDurationSecs) {
 		log.Println("duration aaaaaaaa", duration)
 	}
 
@@ -325,7 +325,7 @@ func NewGreen(street string, simDurationSecs, duration int) *Green {
 type Greens []*Green
 type Green struct {
 	Street   string
-	Duration int
+	Duration int64
 }
 
 func NewCar(line string, streets Streets) Car {
