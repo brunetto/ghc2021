@@ -91,7 +91,7 @@ func run(fn string) *stats {
 		}
 	}
 
-	intersections.SwitchAllOneSec()
+	intersections.SwitchAllNSec(10)
 
 	// WRITE OUTPUT SU FILE
 	out, err := os.Create(fn + ".out")
@@ -175,6 +175,17 @@ func (is *Intersections) SwitchAllOneSec() {
 			i.Schedule = append(i.Schedule, Green{
 				Street:   s.Name,
 				Duration: 1,
+			})
+		}
+	}
+}
+
+func (is *Intersections) SwitchAllNSec(n int) {
+	for _, i := range *is {
+		for _, s := range i.In {
+			i.Schedule = append(i.Schedule, Green{
+				Street:   s.Name,
+				Duration: n,
 			})
 		}
 	}
